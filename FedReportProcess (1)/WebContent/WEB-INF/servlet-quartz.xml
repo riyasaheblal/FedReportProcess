@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans-3.0.xsd 
+	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+	 http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd">
+
+	<context:component-scan base-package="com.fed.sl">
+	</context:component-scan>
+	<bean id="myTask" class="com.fed.sl.job.ScheduleJobs" />
+
+	<bean id="myJob"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="myTask" />
+		<property name="targetMethod" value="pollFiles" />
+		<property name="concurrent" value="false"/>
+	</bean>
+
+	<bean id="simpleTrigger"
+		class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail" ref="myJob" />
+		 <property name="cronExpression" value="0 07 12 * * ?" /><!-- run every 10s -->
+		<!--<property name="cronExpression" value="0 */2 * * * ?" />-->
+	</bean>
+
+
+	<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="simpleTrigger" />
+			</list>
+		</property>
+
+	</bean>
+
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="org.postgresql.Driver" />
+		<property name="url" value="jdbc:postgresql://localhost:5432/FEDMIS" />
+		<property name="username" value="postgres" />
+		<property name="password" value="admin" />
+	</bean>
+
+	<!-- <bean id="txMgr" class="org.springframework.jdbc.datasource.DataSourceTransactionManager"> 
+		<property name="sessionFactory" ref="sessionFactory"/> </bean> -->
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<!-- <property name="configurationClass"> <value>org.hibernate.cfg.AnnotationConfiguration</value> 
+			</property> -->
+		<property name="annotatedClasses">
+			<list>
+				<value>com.fed.sl.pojo.ColumnMap</value>
+				<value>com.fed.sl.pojo.Document</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.PostgreSQLDialect</prop>
+				<prop key="hibernate.show_sql">true</prop>
+				<!-- <prop key="hibernate.hbm2ddl.auto">create</prop> -->
+			</props>
+		</property>
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+
+	<tx:annotation-driven transaction-manager="transactionManager" />
+</beans>
